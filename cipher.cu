@@ -20,6 +20,10 @@ unsigned long get_elapsed(struct timespec *start, struct timespec *end)
 
 std::string processCipher( std::string input, std::string key, bool encode )
 {
+    struct timespec tstart, tend;
+
+    clock_gettime(CLOCK_REALTIME, &tstart);
+
     std::string output = input;
 
     for(int i=0; i<input.length(); i++)
@@ -32,6 +36,10 @@ std::string processCipher( std::string input, std::string key, bool encode )
         else
             output[i] = (char)( ( ( textValue + ( 26 - keyValue ) ) % 26 ) + 97 );
     }
+
+    clock_gettime(CLOCK_REALTIME, &tend);
+
+    printf("Cipher Processing: %ld usec\n", get_elapsed(&tstart, &tend)/1000);
 
     return output;
 }
