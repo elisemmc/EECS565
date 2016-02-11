@@ -26,6 +26,10 @@ std::string processCipher( std::string input, std::string key, bool encode )
 
     std::string output = input;
 
+    input.erase( remove_if(input.begin(), input.end(), isspace), input.end() );
+    std::transform(input.begin(), input.end(), input.begin(), ::tolower);
+    std::transform(key.begin(), key.end(), key.begin(), ::tolower);
+
     for(int i=0; i<input.length(); i++)
     {
         int keyValue = (int)key[i%key.length()] - 97;
@@ -46,7 +50,7 @@ std::string processCipher( std::string input, std::string key, bool encode )
 
 void runCipher(bool encode)
 {
-    std::string input;
+    std::string input, output;
     std::string key;
 
     if(encode)
@@ -56,13 +60,8 @@ void runCipher(bool encode)
 
     std::getline( std::cin, input );
 
-    input.erase( remove_if(input.begin(), input.end(), isspace), input.end() );
-
-    std::string output = input;
-
     std::cout << "Please input the key:" << std::endl;
     std::getline( std::cin, key );
-    std::transform(key.begin(), key.end(), key.begin(), ::tolower);
 
     std::cout << "Your cipher text is:" << std::endl;
 
