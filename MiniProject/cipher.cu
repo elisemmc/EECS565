@@ -9,12 +9,26 @@
 #include <string.h>
 #include <time.h>
 
+#define KEY_LENGTH 2
+#define FIRST_WORD_LENGTH 6
+#define INPUT_STRING "MSOKKJCOSXOEEKDTOSLGFWCMCHSUSGX"
+#define ASCII_CAP_CONVERT 65
+
+//String: MSOKKJCOSXOEEKDTOSLGFWCMCHSUSGX  FirstWord: 6  KeyLength: 2
+
 /**************************************************************************
  * CUDA Functions
  **************************************************************************/
- __global__ void inputFilter( char* in, char* key )
+ __global__ void generateKeys( char* testWord, char* out )
  {
-
+    int index = ( blockIdx.x * blockDim.x + threadIdx.x ) * FIRST_WORD_LENGTH;
+    /*
+    for(int i = 0; i < FIRST_WORD_LENGTH; i++ )
+    {
+        key[ index + i ] = ( ( input[i] - ASCII_CAP_CONVERT ) + 26 - ( testWord[i] - ASCII_CAP_CONVERT ) ) % 26 + ASCII_CAP_CONVERT;
+    }
+    */
+    out[ index ] = testWord[ index ] + 1;
  }
 
 /**************************************************************************
@@ -139,10 +153,12 @@ void giveOption()
 int main(int argc, char **argv)
 {
     //giveOption();
+    struct timespec tstart, tend;
 
     char *one_letter, *two_letter, *three_letter, *four_letter, *five_letter
          , *six_letter, *seven_letter, *eight_letter, *nine_letter, *ten_letter
          , *eleven_letter, *twelve_letter, *thirteen_letter, *fourteen_letter, *fifteen_letter;
+    char *inputChars;
 
     //
     //initialize dictionary
@@ -388,8 +404,39 @@ int main(int argc, char **argv)
     //
     //dictionary loaded into 1d character arrays
     //
+
+    std::string inputString = INPUT_STRING;
+
+    cudaMallocManaged((void **)&inputChars, sizeof(char)*inputString.length());
+    inputChars = (char*)inputString.c_str();
+
+    /* Filter outputs */
+    clock_gettime(CLOCK_REALTIME, &tstart);
+    generateKeys<<< 15, 1024 >>>( six_letter, six_letter );
+    /* cuda synchronize */
+    cudaDeviceSynchronize();
+    clock_gettime(CLOCK_REALTIME, &tend);
+    printf("cuda key generation: %ld usec\n", get_elapsed(&tstart, &tend)/1000);
     
-    //file_output(one_letter, 3, 1);
+    file_output(six_letter, 1024*15, 6);
+
+    cudaFree(one_letter);
+    cudaFree(two_letter);
+    cudaFree(three_letter);
+    cudaFree(four_letter);
+    cudaFree(five_letter);
+    cudaFree(six_letter);
+    cudaFree(seven_letter);
+    cudaFree(eight_letter);
+    cudaFree(nine_letter);
+    cudaFree(ten_letter);
+    cudaFree(eleven_letter);
+    cudaFree(twelve_letter);
+    cudaFree(thirteen_letter);
+    cudaFree(fourteen_letter);
+    cudaFree(fifteen_letter);
+
+    cudaFree(inputChars);
   
     return 0;
 }//end main
