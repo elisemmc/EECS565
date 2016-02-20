@@ -9,9 +9,6 @@
 #include <string.h>
 #include <time.h>
 
-#define KEY_LENGTH 2
-#define FIRST_WORD_LENGTH 6
-#define INPUT_STRING "MSOKKJCOSXOEEKDTOSLGFWCMCHSUSGX"
 #define ASCII_CAP_CONVERT 65
 
 //String: MSOKKJCOSXOEEKDTOSLGFWCMCHSUSGX  FirstWord: 6  KeyLength: 2
@@ -19,16 +16,33 @@
 /**************************************************************************
  * CUDA Functions
  **************************************************************************/
- __global__ void generateKeys( char* testWord, char* out )
+ __global__ void generateKeys( char* cipher, char* testWord, char* keys, int* keyLength, int* firstWordLength )
  {
-    int index = ( blockIdx.x * blockDim.x + threadIdx.x ) * FIRST_WORD_LENGTH;
-    /*
-    for(int i = 0; i < FIRST_WORD_LENGTH; i++ )
+    int index = ( blockIdx.x * blockDim.x + threadIdx.x ) * firstWordLength[0];
+
+    for(int i = 0; i < firstWordLength[0]; i++)
     {
-        key[ index + i ] = ( ( input[i] - ASCII_CAP_CONVERT ) + 26 - ( testWord[i] - ASCII_CAP_CONVERT ) ) % 26 + ASCII_CAP_CONVERT;
+        keys[ index + i ] = ( ( cipher[ i ] - ASCII_CAP_CONVERT ) - ( testWord[ index + i ] - ASCII_CAP_CONVERT ) + 26 ) % 26 + ASCII_CAP_CONVERT;
     }
-    */
-    out[ index ] = testWord[ index ] + 1;
+    for( int i = 0; i < keyLength[0]; i++)
+    {
+        int j = firstWordLength[0];
+
+        while( j > keyLength[0] )
+        {
+            if( keys[ index + j - i ] != keys[ index + j - i - keyLength[0] ] )
+            {
+                j = 0;
+                
+                for(int k = 0; k < firstWordLength[0]; k++)
+                {
+                    keys[ index + k ] = 'a';
+                }
+            }
+
+            j = j - keyLength[0];
+        }
+    }
  }
 
 /**************************************************************************
@@ -53,11 +67,14 @@ void file_output(char *data, int size, int word_length)
 
     for(int i = 0; i < size; i++)
     {
-        for(int j = 0; j < word_length; j++)
+        if(data[word_length*i] != 'a')
         {
-            Matrix_out<<data[word_length*i+j];
+            for(int j = 0; j < word_length; j++)
+            {
+                Matrix_out<<data[word_length*i+j];
+            }
+            Matrix_out<<",\n";
         }
-        Matrix_out<<",\n";
     }
 
     Matrix_out.close();
@@ -74,20 +91,20 @@ std::string processCipher( std::string input, std::string key, bool encode )
 
     //take out spaces and change all letters to lowercase
     input.erase( remove_if(input.begin(), input.end(), isspace), input.end() );
-    std::transform(input.begin(), input.end(), input.begin(), ::tolower);
-    std::transform(key.begin(), key.end(), key.begin(), ::tolower);
+    std::transform(input.begin(), input.end(), input.begin(), ::toupper);
+    std::transform(key.begin(), key.end(), key.begin(), ::toupper);
 
     std::string output = input;
 
     for(int i=0; i<input.length(); i++)
     {
-        int keyValue = (int)key[i%key.length()] - 97;
-        int textValue = (int)input[i] - 97;
+        int keyValue = (int)key[i%key.length()] - 65;
+        int textValue = (int)input[i] - 65;
 
         if(encode)
-            output[i] = (char)( ( ( textValue + keyValue ) % 26 ) + 97 );
+            output[i] = (char)( ( ( textValue + keyValue ) % 26 ) + 65 );
         else
-            output[i] = (char)( ( ( textValue + ( 26 - keyValue ) ) % 26 ) + 97 );//I add so I don't have to deal with absolute values
+            output[i] = (char)( ( ( textValue + ( 26 - keyValue ) ) % 26 ) + 65 );//I add so I don't have to deal with absolute values
     }
 
     clock_gettime(CLOCK_REALTIME, &tend);
@@ -153,12 +170,12 @@ void giveOption()
 int main(int argc, char **argv)
 {
     //giveOption();
+
     struct timespec tstart, tend;
 
     char *one_letter, *two_letter, *three_letter, *four_letter, *five_letter
          , *six_letter, *seven_letter, *eight_letter, *nine_letter, *ten_letter
          , *eleven_letter, *twelve_letter, *thirteen_letter, *fourteen_letter, *fifteen_letter;
-    char *inputChars;
 
     //
     //initialize dictionary
@@ -405,14 +422,26 @@ int main(int argc, char **argv)
     //dictionary loaded into 1d character arrays
     //
 
-    std::string inputString = INPUT_STRING;
+    int *key_length, *first_word_length;
+    char *inputChars;
+
+    std::string inputString = "MSOKKJCOSXOEEKDTOSLGFWCMCHSUSGX";
 
     cudaMallocManaged((void **)&inputChars, sizeof(char)*inputString.length());
-    inputChars = (char*)inputString.c_str();
+    for(int i = 0; i < inputString.length(); i++ )
+    {
+        inputChars[i] = inputString[i];
+    }
+
+    cudaMallocManaged((void **)&key_length, sizeof(int));
+    key_length[0] = 2;
+
+    cudaMallocManaged((void **)&first_word_length, sizeof(int));
+    first_word_length[0] = 6;
 
     /* Filter outputs */
     clock_gettime(CLOCK_REALTIME, &tstart);
-    generateKeys<<< 15, 1024 >>>( six_letter, six_letter );
+    generateKeys<<< 15, 1024 >>>( inputChars, six_letter, six_letter, key_length, first_word_length );
     /* cuda synchronize */
     cudaDeviceSynchronize();
     clock_gettime(CLOCK_REALTIME, &tend);
