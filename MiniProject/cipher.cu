@@ -115,10 +115,6 @@ void file_output(char *data, int size, int word_length)
  **************************************************************************/
 std::string processCipher( std::string input, std::string key, bool encode )
 {
-    struct timespec tstart, tend;
-
-    clock_gettime(CLOCK_REALTIME, &tstart);
-
     //take out spaces and change all letters to lowercase
     input.erase( remove_if(input.begin(), input.end(), isspace), input.end() );
     std::transform(input.begin(), input.end(), input.begin(), ::toupper);
@@ -128,18 +124,14 @@ std::string processCipher( std::string input, std::string key, bool encode )
 
     for(int i=0; i<input.length(); i++)
     {
-        int keyValue = (int)key[i%key.length()] - 65;
-        int textValue = (int)input[i] - 65;
+        int keyValue = (int)key[i%key.length()] - ASCII_CAP_CONVERT;
+        int textValue = (int)input[i] - ASCII_CAP_CONVERT;
 
         if(encode)
-            output[i] = (char)( ( ( textValue + keyValue ) % 26 ) + 65 );
+            output[i] = (char)( ( ( textValue + keyValue ) % 26 ) + ASCII_CAP_CONVERT );
         else
-            output[i] = (char)( ( ( textValue + ( 26 - keyValue ) ) % 26 ) + 65 );//I add so I don't have to deal with absolute values
+            output[i] = (char)( ( ( textValue + ( 26 - keyValue ) ) % 26 ) + ASCII_CAP_CONVERT );//I add so I don't have to deal with absolute values
     }
-
-    clock_gettime(CLOCK_REALTIME, &tend);
-
-    printf("Cipher Processing: %ld usec\n", get_elapsed(&tstart, &tend)/1000);
 
     return output;
 }//end processCipher
@@ -207,6 +199,7 @@ int main(int argc, char **argv)
          , *six_letter, *seven_letter, *eight_letter, *nine_letter, *ten_letter
          , *eleven_letter, *twelve_letter, *thirteen_letter, *fourteen_letter, *fifteen_letter;
 
+    clock_gettime(CLOCK_REALTIME, &tstart);
     //
     //initialize dictionary
     //
@@ -451,6 +444,8 @@ int main(int argc, char **argv)
     //
     //dictionary loaded into 1d character arrays
     //
+    clock_gettime(CLOCK_REALTIME, &tend);
+    printf("dictionary upload: %ld usec\n", get_elapsed(&tstart, &tend)/1000);
 
     //
     //initialize dependant variables
