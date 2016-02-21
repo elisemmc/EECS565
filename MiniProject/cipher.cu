@@ -11,36 +11,42 @@
 
 #define ASCII_CAP_CONVERT 65
 
-//String: MSOKKJCOSXOEEKDTOSLGFWCMCHSUSGX  FirstWord: 6  KeyLength: 2
+#define CIPHER "MSOKKJCOSXOEEKDTOSLGFWCMCHSUSGX"
+#define FIRST_WORD_LENGTH 6
+#define KEY_LENGTH 2
+#define BLOCKS 15
+#define WORD_ARRAY six_letter
+
+//String: MSOKKJCOSXOEEKDTOSLGFWCMCHSUSGX  FirstWord: 6  KeyLength: 2  Blocks: 15
 
 /**************************************************************************
  * CUDA Functions
  **************************************************************************/
- __global__ void generateKeys( char* cipher, char* testWord, char* keys, int* keyLength, int* firstWordLength )
+ __global__ void generateKeys( char* cipher, char* testWord, char* testKeys, char* keys )
  {
-    int index = ( blockIdx.x * blockDim.x + threadIdx.x ) * firstWordLength[0];
+    int index = ( blockIdx.x * blockDim.x + threadIdx.x ) * FIRST_WORD_LENGTH;
+    int keyIndex = ( blockIdx.x * blockDim.x + threadIdx.x ) * KEY_LENGTH;
 
-    for(int i = 0; i < firstWordLength[0]; i++)
+    for(int i = 0; i < FIRST_WORD_LENGTH; i++)
     {
-        keys[ index + i ] = ( ( cipher[ i ] - ASCII_CAP_CONVERT ) - ( testWord[ index + i ] - ASCII_CAP_CONVERT ) + 26 ) % 26 + ASCII_CAP_CONVERT;
-    }
-    for( int i = 0; i < keyLength[0]; i++)
-    {
-        int j = firstWordLength[0];
-
-        while( j > keyLength[0] )
+        testKeys[ index + i ] = ( ( cipher[ i ] - ASCII_CAP_CONVERT ) - ( testWord[ index + i ] - ASCII_CAP_CONVERT ) + 26 ) % 26 + ASCII_CAP_CONVERT;
+        if( i < KEY_LENGTH )
         {
-            if( keys[ index + j - i ] != keys[ index + j - i - keyLength[0] ] )
+            keys[ keyIndex + i ] = testKeys[ index + i ];
+        }
+    }
+    for( int i = 0; i < KEY_LENGTH; i++)
+    {
+        int j = 0;
+
+        while( j + i + KEY_LENGTH < FIRST_WORD_LENGTH )
+        {
+            if( testKeys[ index + j + i ] != testKeys[ index + j + i + KEY_LENGTH ] )
             {
-                j = 0;
-                
-                for(int k = 0; k < firstWordLength[0]; k++)
-                {
-                    keys[ index + k ] = 'a';
-                }
+                keys[ keyIndex ] = 'a';
             }
 
-            j = j - keyLength[0];
+            j = j + KEY_LENGTH;
         }
     }
  }
@@ -423,31 +429,27 @@ int main(int argc, char **argv)
     //
 
     int *key_length, *first_word_length;
-    char *inputChars;
+    char *input_chars, *test_key_holder, *keys;
 
-    std::string inputString = "MSOKKJCOSXOEEKDTOSLGFWCMCHSUSGX";
-
-    cudaMallocManaged((void **)&inputChars, sizeof(char)*inputString.length());
+    std::string inputString = CIPHER;
+    cudaMallocManaged((void **)&input_chars, sizeof(char)*inputString.length());
     for(int i = 0; i < inputString.length(); i++ )
     {
-        inputChars[i] = inputString[i];
+        input_chars[i] = inputString[i];
     }
 
-    cudaMallocManaged((void **)&key_length, sizeof(int));
-    key_length[0] = 2;
-
-    cudaMallocManaged((void **)&first_word_length, sizeof(int));
-    first_word_length[0] = 6;
+    cudaMallocManaged((void **)&test_key_holder, sizeof(char)*FIRST_WORD_LENGTH*1024*BLOCKS);
+    cudaMallocManaged((void **)&keys, sizeof(char)*KEY_LENGTH*1024*BLOCKS);
 
     /* Filter outputs */
     clock_gettime(CLOCK_REALTIME, &tstart);
-    generateKeys<<< 15, 1024 >>>( inputChars, six_letter, six_letter, key_length, first_word_length );
+    generateKeys<<< BLOCKS, 1024 >>>( input_chars, WORD_ARRAY, test_key_holder, keys);
     /* cuda synchronize */
     cudaDeviceSynchronize();
     clock_gettime(CLOCK_REALTIME, &tend);
     printf("cuda key generation: %ld usec\n", get_elapsed(&tstart, &tend)/1000);
     
-    file_output(six_letter, 1024*15, 6);
+    file_output(keys, 1024*BLOCKS, KEY_LENGTH );
 
     cudaFree(one_letter);
     cudaFree(two_letter);
@@ -465,7 +467,7 @@ int main(int argc, char **argv)
     cudaFree(fourteen_letter);
     cudaFree(fifteen_letter);
 
-    cudaFree(inputChars);
+    cudaFree(input_chars);
   
     return 0;
 }//end main
