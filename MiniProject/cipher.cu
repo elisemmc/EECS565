@@ -11,10 +11,36 @@
 
 #define ASCII_CAP_CONVERT 65
 
-
+/*
+//Problem 1:
 #define CIPHER "MSOKKJCOSXOEEKDTOSLGFWCMCHSUSGX"
 #define FIRST_WORD_LENGTH 6
 #define KEY_LENGTH 2
+
+//Problem 2:
+#define CIPHER "OOPCULNWFRCFQAQJGPNARMEYUODYOUNRGWORQEPVARCEPBBSCEQYEARAJUYGWWYACYWBPRNEJBMDTEAEYCCFJNENSGWAQRTSJTGXNRQRMDGFEEPHSJRGFCFMACCB"
+#define FIRST_WORD_LENGTH 7
+#define KEY_LENGTH 3
+
+//Problem 3:
+#define CIPHER "MTZHZEOQKASVBDOWMWMKMNYIIHVWPEXJA"
+#define FIRST_WORD_LENGTH 10
+#define KEY_LENGTH 4
+
+//Problem 4:
+#define CIPHER "HUETNMIXVTMQWZTQMMZUNZXNSSBLNSJVSJQDLKR"
+#define FIRST_WORD_LENGTH 11
+#define KEY_LENGTH 5
+
+//Problem 5:
+#define CIPHER "LDWMEKPOPSWNOAVBIDHIPCEWAETYRVOAUPSINOVDIEDHCDSELHCCPVHRPOHZUSERSFS"
+#define FIRST_WORD_LENGTH 9
+#define KEY_LENGTH 6
+*/
+//Problem 6:
+#define CIPHER "VVVLZWWPBWHZDKBTXLDCGOTGTGRWAQWZSDHEMXLBELUMO"
+#define FIRST_WORD_LENGTH 13
+#define KEY_LENGTH 7
 
 
 /**************************************************************************
@@ -67,7 +93,7 @@ void file_output(char *data, int size, int word_length)
 {
     std::ofstream Matrix_out;
 
-    Matrix_out.open("out.csv");
+    Matrix_out.open("key.csv");
 
     for(int i = 0; i < size; i++)
     {
@@ -468,7 +494,21 @@ int main(int argc, char **argv)
     clock_gettime(CLOCK_REALTIME, &tend);
     printf("cuda key generation: %ld usec\n", get_elapsed(&tstart, &tend)/1000);
     
-    file_output(keys, 1024*blocks, KEY_LENGTH );
+    //file_output(keys, 1024*blocks, KEY_LENGTH );
+
+    for(int i = 0; i < 1024*blocks; i++)
+    {
+        std::string testKey;
+
+        if(keys[KEY_LENGTH*i] != 'a')
+        {
+            for(int j = 0; j < KEY_LENGTH; j++)
+            {
+                testKey += keys[KEY_LENGTH*i+j];
+            }
+            std::cout<<processCipher(CIPHER, testKey, false)<<std::endl;
+        }
+    }
 
     cudaFree(one_letter);
     cudaFree(two_letter);
