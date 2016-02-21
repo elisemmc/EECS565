@@ -11,13 +11,11 @@
 
 #define ASCII_CAP_CONVERT 65
 
+
 #define CIPHER "MSOKKJCOSXOEEKDTOSLGFWCMCHSUSGX"
 #define FIRST_WORD_LENGTH 6
 #define KEY_LENGTH 2
-#define BLOCKS 15
-#define WORD_ARRAY six_letter
 
-//String: MSOKKJCOSXOEEKDTOSLGFWCMCHSUSGX  FirstWord: 6  KeyLength: 2  Blocks: 15
 
 /**************************************************************************
  * CUDA Functions
@@ -428,6 +426,27 @@ int main(int argc, char **argv)
     //dictionary loaded into 1d character arrays
     //
 
+    //
+    //initialize dependant variables
+    //
+    int blocks;
+    char* dictionaryArray;
+
+    switch( FIRST_WORD_LENGTH )
+    {
+        case 6 : blocks = 15; dictionaryArray = six_letter; break;
+        case 7 : blocks = 23; dictionaryArray = seven_letter; break;
+        case 8 : blocks = 28; dictionaryArray = eight_letter; break;
+        case 9 : blocks = 25; dictionaryArray = nine_letter; break;
+        case 10 : blocks = 20; dictionaryArray = ten_letter; break;
+        case 11 : blocks = 16; dictionaryArray = eleven_letter; break;
+        case 12 : blocks = 11; dictionaryArray = twelve_letter; break;
+        case 13 : blocks = 8; dictionaryArray = thirteen_letter; break;
+    }
+    //
+    //variables initialized
+    //
+
     int *key_length, *first_word_length;
     char *input_chars, *test_key_holder, *keys;
 
@@ -438,18 +457,18 @@ int main(int argc, char **argv)
         input_chars[i] = inputString[i];
     }
 
-    cudaMallocManaged((void **)&test_key_holder, sizeof(char)*FIRST_WORD_LENGTH*1024*BLOCKS);
-    cudaMallocManaged((void **)&keys, sizeof(char)*KEY_LENGTH*1024*BLOCKS);
+    cudaMallocManaged((void **)&test_key_holder, sizeof(char)*FIRST_WORD_LENGTH*1024*blocks);
+    cudaMallocManaged((void **)&keys, sizeof(char)*KEY_LENGTH*1024*blocks);
 
     /* Filter outputs */
     clock_gettime(CLOCK_REALTIME, &tstart);
-    generateKeys<<< BLOCKS, 1024 >>>( input_chars, WORD_ARRAY, test_key_holder, keys);
+    generateKeys<<< blocks, 1024 >>>( input_chars, dictionaryArray, test_key_holder, keys);
     /* cuda synchronize */
     cudaDeviceSynchronize();
     clock_gettime(CLOCK_REALTIME, &tend);
     printf("cuda key generation: %ld usec\n", get_elapsed(&tstart, &tend)/1000);
     
-    file_output(keys, 1024*BLOCKS, KEY_LENGTH );
+    file_output(keys, 1024*blocks, KEY_LENGTH );
 
     cudaFree(one_letter);
     cudaFree(two_letter);
