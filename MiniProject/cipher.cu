@@ -1,8 +1,9 @@
 //
+// Author: Elise McEllhiney
 //
-//
-//
-//
+// Given cipher text, first word length, and key length this program will crack a vernier cipher
+// The first word length must exceed the key length
+// This algorith decreases in efficiency as the key length and the first word length become more similar
 //
 
 #include <algorithm>
@@ -39,17 +40,21 @@
 #define CIPHER "HUETNMIXVTMQWZTQMMZUNZXNSSBLNSJVSJQDLKR"
 #define FIRST_WORD_LENGTH 11
 #define KEY_LENGTH 5
-*/
+
 //Problem 5:
 #define CIPHER "LDWMEKPOPSWNOAVBIDHIPCEWAETYRVOAUPSINOVDIEDHCDSELHCCPVHRPOHZUSERSFS"
 #define FIRST_WORD_LENGTH 9
 #define KEY_LENGTH 6
-/*
+
 //Problem 6:
 #define CIPHER "VVVLZWWPBWHZDKBTXLDCGOTGTGRWAQWZSDHEMXLBELUMO"
 #define FIRST_WORD_LENGTH 13
 #define KEY_LENGTH 7
 */
+
+#define CIPHER "QSBWEBOQCXWKKVR"
+#define FIRST_WORD_LENGTH 3
+#define KEY_LENGTH 3
 
 /**************************************************************************
  * CUDA Functions
@@ -136,14 +141,14 @@ std::string parseString( std::string input, std::string dict )
     {
         if( input.length() >= i )
         {
-            if( dict.find( ( input.substr(0,i) + "," ) ) != std::string::npos )
+            if( dict.find( ( "," + input.substr(0,i) + "," ) ) != std::string::npos )
             {
-                output = input.substr(0,i) + + " " + parseString( input.substr( i, input.length()-i ), dict );
+                output = input.substr(0,i) + parseString( input.substr( i, input.length()-i ), dict );
+            }
 
-                if(output.back() != 'a')
-                {
+            if(output.back() != 'a')
+            {
                     break;
-                }
             }
         }
     }
@@ -562,7 +567,7 @@ int main(int argc, char **argv)
          , *six_letter, *seven_letter, *eight_letter, *nine_letter, *ten_letter
          , *eleven_letter, *twelve_letter, *thirteen_letter, *fourteen_letter, *fifteen_letter;
 
-    std::string dictionaryStr;
+    std::string dictionaryStr = ",";
 
     //create arrays for all words of a given length in dictionary
     //for words I generate keys from I group them in batches of 1024, so I have filler text of all Z
@@ -650,10 +655,16 @@ int main(int argc, char **argv)
                 testKey += keys[KEY_LENGTH*i+j];
             }
 
-            std::string plainText = processCipher(CIPHER, testKey, false);
-            std::cout<< plainText <<std::endl; 
+            std::string plainText = processCipher(CIPHER, testKey, false); 
 
-            std::cout<< plainText.substr(0,FIRST_WORD_LENGTH) + " " + parseString( plainText.substr( FIRST_WORD_LENGTH, plainText.length()-FIRST_WORD_LENGTH ), dictionaryStr ) <<std::endl;
+            std::string testString = plainText.substr(0,FIRST_WORD_LENGTH) + parseString( plainText.substr( FIRST_WORD_LENGTH, plainText.length()-FIRST_WORD_LENGTH ), dictionaryStr );
+
+            if( testString.back() != 'a' )
+            {
+                std::cout << "\n" << "Key: " << testKey << std::endl;
+                std::cout << "Plain Text: " << testString << std::endl;
+            }
+
         }
     }
 
