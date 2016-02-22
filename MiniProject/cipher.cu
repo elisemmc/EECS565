@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <vector>
 
 #define ASCII_CAP_CONVERT 65
 
@@ -16,12 +17,12 @@
 #define CIPHER "MSOKKJCOSXOEEKDTOSLGFWCMCHSUSGX"
 #define FIRST_WORD_LENGTH 6
 #define KEY_LENGTH 2
-
+*/
 //Problem 2:
 #define CIPHER "OOPCULNWFRCFQAQJGPNARMEYUODYOUNRGWORQEPVARCEPBBSCEQYEARAJUYGWWYACYWBPRNEJBMDTEAEYCCFJNENSGWAQRTSJTGXNRQRMDGFEEPHSJRGFCFMACCB"
 #define FIRST_WORD_LENGTH 7
 #define KEY_LENGTH 3
-
+/*
 //Problem 3:
 #define CIPHER "MTZHZEOQKASVBDOWMWMKMNYIIHVWPEXJA"
 #define FIRST_WORD_LENGTH 10
@@ -36,41 +37,43 @@
 #define CIPHER "LDWMEKPOPSWNOAVBIDHIPCEWAETYRVOAUPSINOVDIEDHCDSELHCCPVHRPOHZUSERSFS"
 #define FIRST_WORD_LENGTH 9
 #define KEY_LENGTH 6
-*/
+
 //Problem 6:
 #define CIPHER "VVVLZWWPBWHZDKBTXLDCGOTGTGRWAQWZSDHEMXLBELUMO"
 #define FIRST_WORD_LENGTH 13
 #define KEY_LENGTH 7
-
+*/
 
 /**************************************************************************
  * CUDA Functions
  **************************************************************************/
- __global__ void generateKeys( char* cipher, char* testWord, char* testKeys, char* keys )
+ __global__ void generateKeys( char* cipher, char* testWord, char* testKeys, char* keys, int firstWordLength, int keyLength )
  {
-    int index = ( blockIdx.x * blockDim.x + threadIdx.x ) * FIRST_WORD_LENGTH;
-    int keyIndex = ( blockIdx.x * blockDim.x + threadIdx.x ) * KEY_LENGTH;
+    int wordIndex = ( blockIdx.x * blockDim.x + threadIdx.x ) * firstWordLength;
+    int testKeyIndex = ( blockIdx.x * blockDim.x + threadIdx.x ) * 15;
+    int keyIndex = ( blockIdx.x * blockDim.x + threadIdx.x ) * keyLength;
 
-    for(int i = 0; i < FIRST_WORD_LENGTH; i++)
+    for(int i = 0; i < firstWordLength; i++)
     {
-        testKeys[ index + i ] = ( ( cipher[ i ] - ASCII_CAP_CONVERT ) - ( testWord[ index + i ] - ASCII_CAP_CONVERT ) + 26 ) % 26 + ASCII_CAP_CONVERT;
-        if( i < KEY_LENGTH )
+        testKeys[ testKeyIndex + i ] = ( ( cipher[ i ] - ASCII_CAP_CONVERT ) - ( testWord[ wordIndex + i ] - ASCII_CAP_CONVERT ) + 26 ) % 26 + ASCII_CAP_CONVERT;
+        if( i < keyLength )
         {
-            keys[ keyIndex + i ] = testKeys[ index + i ];
+            keys[ keyIndex + i ] = testKeys[ testKeyIndex + i ];
         }
     }
-    for( int i = 0; i < KEY_LENGTH; i++)
+    for( int i = 0; i < keyLength; i++)
     {
         int j = 0;
 
-        while( j + i + KEY_LENGTH < FIRST_WORD_LENGTH )
+        while( j + i + keyLength < firstWordLength )
         {
-            if( testKeys[ index + j + i ] != testKeys[ index + j + i + KEY_LENGTH ] )
+            if( testKeys[ testKeyIndex + j + i ] != testKeys[ testKeyIndex + j + i + keyLength ] )
             {
                 keys[ keyIndex ] = 'a';
+                break;
             }
 
-            j = j + KEY_LENGTH;
+            j = j + keyLength;
         }
     }
  }
@@ -161,6 +164,9 @@ void runCipher(bool encode)
     std::cout << output << std::endl;
 }//end runCipher
 
+/**************************************************************************
+ * Allow manual input through terminal to encode or decode text with known key
+ **************************************************************************/
 void giveOption()
 {
     std::string choice = "encode";
@@ -189,40 +195,15 @@ void giveOption()
     }
 }
 
-int main(int argc, char **argv)
+/**************************************************************************
+ * Initialize dictionary
+ **************************************************************************/
+void initializeDictionary(char* one_letter, char* two_letter, char* three_letter, char* four_letter, char* five_letter
+                          , char* six_letter, char* seven_letter, char* eight_letter, char* nine_letter, char* ten_letter
+                          , char* eleven_letter, char* twelve_letter, char* thirteen_letter, char* fourteen_letter, char* fifteen_letter)
 {
-    //giveOption();
-
-    struct timespec tstart, tend;
-
-    char *one_letter, *two_letter, *three_letter, *four_letter, *five_letter
-         , *six_letter, *seven_letter, *eight_letter, *nine_letter, *ten_letter
-         , *eleven_letter, *twelve_letter, *thirteen_letter, *fourteen_letter, *fifteen_letter;
-
-    clock_gettime(CLOCK_REALTIME, &tstart);
-    //
-    //initialize dictionary
-    //
     std::ifstream dictionaryFile;
     dictionaryFile.open("dictionary.txt");
-
-    //create arrays for all words of a given length in dictionary
-    //for words I generate keys from I group them in batches of 1024, so I have filler text of all Z
-    cudaMallocManaged((void **)&one_letter, sizeof(char)*3);//3 one letter words
-    cudaMallocManaged((void **)&two_letter, sizeof(char)*2*96);//96 two letter words
-    cudaMallocManaged((void **)&three_letter, sizeof(char)*3*972);//972 three letter words
-    cudaMallocManaged((void **)&four_letter, sizeof(char)*4*3903);//3903 four letter words
-    cudaMallocManaged((void **)&five_letter, sizeof(char)*5*8636);//8636 five letter words
-    cudaMallocManaged((void **)&six_letter, sizeof(char)*6*1024*15);//15232 six letter words
-    cudaMallocManaged((void **)&seven_letter, sizeof(char)*7*1024*23);//23109 seven letter words
-    cudaMallocManaged((void **)&eight_letter, sizeof(char)*8*1024*28);//28419 eight letter words
-    cudaMallocManaged((void **)&nine_letter, sizeof(char)*9*1024*25);//24793 nine letter words
-    cudaMallocManaged((void **)&ten_letter, sizeof(char)*10*1024*20);//20197 ten letter words
-    cudaMallocManaged((void **)&eleven_letter, sizeof(char)*11*1024*16);//15407 eleven letter words
-    cudaMallocManaged((void **)&twelve_letter, sizeof(char)*12*1024*11);//11248 twelve letter words
-    cudaMallocManaged((void **)&thirteen_letter, sizeof(char)*13*1024*8);//7736 thirteen letter words
-    cudaMallocManaged((void **)&fourteen_letter, sizeof(char)*14*5059);//5059 fourteen letter words
-    cudaMallocManaged((void **)&fifteen_letter, sizeof(char)*15*3157);//3157 fifteen letter words
 
     std::string buffer;
 
@@ -441,18 +422,57 @@ int main(int argc, char **argv)
     }
     std::cout<<"15 :\n";
     dictionaryFile.close();
+}
+
+/**************************************************************************
+ * Main
+ **************************************************************************/
+int main(int argc, char **argv)
+{
+    struct timespec tstart, tend;
+
+    clock_gettime(CLOCK_REALTIME, &tstart);
+
+    //
+    //initialize dictionary
+    //
+    char *one_letter, *two_letter, *three_letter, *four_letter, *five_letter
+         , *six_letter, *seven_letter, *eight_letter, *nine_letter, *ten_letter
+         , *eleven_letter, *twelve_letter, *thirteen_letter, *fourteen_letter, *fifteen_letter;
+
+    //create arrays for all words of a given length in dictionary
+    //for words I generate keys from I group them in batches of 1024, so I have filler text of all Z
+    cudaMallocManaged((void **)&one_letter, sizeof(char)*3);//3 one letter words
+    cudaMallocManaged((void **)&two_letter, sizeof(char)*2*96);//96 two letter words
+    cudaMallocManaged((void **)&three_letter, sizeof(char)*3*972);//972 three letter words
+    cudaMallocManaged((void **)&four_letter, sizeof(char)*4*3903);//3903 four letter words
+    cudaMallocManaged((void **)&five_letter, sizeof(char)*5*8636);//8636 five letter words
+    cudaMallocManaged((void **)&six_letter, sizeof(char)*6*1024*15);//15232 six letter words
+    cudaMallocManaged((void **)&seven_letter, sizeof(char)*7*1024*23);//23109 seven letter words
+    cudaMallocManaged((void **)&eight_letter, sizeof(char)*8*1024*28);//28419 eight letter words
+    cudaMallocManaged((void **)&nine_letter, sizeof(char)*9*1024*25);//24793 nine letter words
+    cudaMallocManaged((void **)&ten_letter, sizeof(char)*10*1024*20);//20197 ten letter words
+    cudaMallocManaged((void **)&eleven_letter, sizeof(char)*11*1024*16);//15407 eleven letter words
+    cudaMallocManaged((void **)&twelve_letter, sizeof(char)*12*1024*11);//11248 twelve letter words
+    cudaMallocManaged((void **)&thirteen_letter, sizeof(char)*13*1024*8);//7736 thirteen letter words
+    cudaMallocManaged((void **)&fourteen_letter, sizeof(char)*14*5059);//5059 fourteen letter words
+    cudaMallocManaged((void **)&fifteen_letter, sizeof(char)*15*3157);//3157 fifteen letter words
+
+    initializeDictionary(one_letter, two_letter, three_letter, four_letter, five_letter
+                         , six_letter, seven_letter, eight_letter, nine_letter, ten_letter
+                         , eleven_letter, twelve_letter, thirteen_letter, fourteen_letter, fifteen_letter);
     //
     //dictionary loaded into 1d character arrays
     //
     clock_gettime(CLOCK_REALTIME, &tend);
     printf("dictionary upload: %ld usec\n", get_elapsed(&tstart, &tend)/1000);
 
-    //
-    //initialize dependant variables
-    //
-    int blocks;
-    char* dictionaryArray;
+    int blocks, *key_length, *first_word_length;
+    char *dictionaryArray, *input_chars, *test_key_holder, *keys;
 
+    //
+    //set dependant variables
+    //
     switch( FIRST_WORD_LENGTH )
     {
         case 6 : blocks = 15; dictionaryArray = six_letter; break;
@@ -465,11 +485,10 @@ int main(int argc, char **argv)
         case 13 : blocks = 8; dictionaryArray = thirteen_letter; break;
     }
     //
-    //variables initialized
+    //variables set
     //
 
-    int *key_length, *first_word_length;
-    char *input_chars, *test_key_holder, *keys;
+    cudaMallocManaged((void **)&test_key_holder, sizeof(char)*15*1024*blocks);//allocate for maximum possible length words so we can generate keys for any length word
 
     std::string inputString = CIPHER;
     cudaMallocManaged((void **)&input_chars, sizeof(char)*inputString.length());
@@ -478,18 +497,15 @@ int main(int argc, char **argv)
         input_chars[i] = inputString[i];
     }
 
-    cudaMallocManaged((void **)&test_key_holder, sizeof(char)*FIRST_WORD_LENGTH*1024*blocks);
     cudaMallocManaged((void **)&keys, sizeof(char)*KEY_LENGTH*1024*blocks);
 
     /* Filter outputs */
     clock_gettime(CLOCK_REALTIME, &tstart);
-    generateKeys<<< blocks, 1024 >>>( input_chars, dictionaryArray, test_key_holder, keys);
+    generateKeys<<< blocks, 1024 >>>( input_chars, dictionaryArray, test_key_holder, keys, FIRST_WORD_LENGTH, KEY_LENGTH);
     /* cuda synchronize */
     cudaDeviceSynchronize();
     clock_gettime(CLOCK_REALTIME, &tend);
     printf("cuda key generation: %ld usec\n", get_elapsed(&tstart, &tend)/1000);
-    
-    //file_output(keys, 1024*blocks, KEY_LENGTH );
 
     for(int i = 0; i < 1024*blocks; i++)
     {
@@ -501,10 +517,16 @@ int main(int argc, char **argv)
             {
                 testKey += keys[KEY_LENGTH*i+j];
             }
-            std::cout<<processCipher(CIPHER, testKey, false)<<std::endl;
+
+            std::cout<<processCipher(CIPHER, testKey, false)<<std::endl;     
         }
     }
 
+    cudaFree(input_chars);
+    cudaFree(keys);
+
+    cudaFree(test_key_holder);
+    
     cudaFree(one_letter);
     cudaFree(two_letter);
     cudaFree(three_letter);
@@ -520,8 +542,6 @@ int main(int argc, char **argv)
     cudaFree(thirteen_letter);
     cudaFree(fourteen_letter);
     cudaFree(fifteen_letter);
-
-    cudaFree(input_chars);
   
     return 0;
 }//end main
