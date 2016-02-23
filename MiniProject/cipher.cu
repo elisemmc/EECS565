@@ -1,6 +1,10 @@
 //
 // Author: Elise McEllhiney
 //
+// Created: Feb 10, 2016
+//
+// Modified: Feb 22, 2016
+//
 // Given cipher text, first word length, and key length this program will crack a vernier cipher
 // The first word length must exceed the key length
 // This algorith decreases in efficiency as the key length and the first word length become more similar
@@ -45,43 +49,42 @@
 #define CIPHER "LDWMEKPOPSWNOAVBIDHIPCEWAETYRVOAUPSINOVDIEDHCDSELHCCPVHRPOHZUSERSFS"
 #define FIRST_WORD_LENGTH 9
 #define KEY_LENGTH 6
+*/
 
 //Problem 6:
 #define CIPHER "VVVLZWWPBWHZDKBTXLDCGOTGTGRWAQWZSDHEMXLBELUMO"
 #define FIRST_WORD_LENGTH 13
 #define KEY_LENGTH 7
-*/
+/*
 
 #define CIPHER "QSBWEBOQCXWKKVR"
 #define FIRST_WORD_LENGTH 3
 #define KEY_LENGTH 3
-
+*/
 /**************************************************************************
  * CUDA Functions
  **************************************************************************/
  __global__ void generateKeys( char* cipher, char* testWord, char* testKeys, char* keys, int firstWordLength, int keyLength )
  {
-    int wordIndex = ( blockIdx.x * blockDim.x + threadIdx.x ) * firstWordLength;
-    int testKeyIndex = ( blockIdx.x * blockDim.x + threadIdx.x ) * 15;
-    int keyIndex = ( blockIdx.x * blockDim.x + threadIdx.x ) * keyLength;
-
-    for(int i = 0; i < firstWordLength; i++)
+    int i;
+    
+    for( i = 0; i < firstWordLength; i++ )
     {
-        testKeys[ testKeyIndex + i ] = ( ( cipher[ i ] - ASCII_CAP_CONVERT ) - ( testWord[ wordIndex + i ] - ASCII_CAP_CONVERT ) + 26 ) % 26 + ASCII_CAP_CONVERT;
+        testKeys[ ( blockIdx.x * blockDim.x + threadIdx.x ) * 15 + i ] = ( ( cipher[ i ] - ASCII_CAP_CONVERT ) - ( testWord[ ( blockIdx.x * blockDim.x + threadIdx.x ) * firstWordLength + i ] - ASCII_CAP_CONVERT ) + 26 ) % 26 + ASCII_CAP_CONVERT;
         if( i < keyLength )
         {
-            keys[ keyIndex + i ] = testKeys[ testKeyIndex + i ];
+            keys[ ( blockIdx.x * blockDim.x + threadIdx.x ) * keyLength + i ] = testKeys[ ( blockIdx.x * blockDim.x + threadIdx.x ) * 15 + i ];
         }
     }
-    for( int i = 0; i < keyLength; i++)
+    for( i = 0; i < keyLength; i++ )
     {
         int j = 0;
 
         while( j + i + keyLength < firstWordLength )
         {
-            if( testKeys[ testKeyIndex + j + i ] != testKeys[ testKeyIndex + j + i + keyLength ] )
+            if( testKeys[ ( blockIdx.x * blockDim.x + threadIdx.x ) * 15 + j + i ] != testKeys[ ( blockIdx.x * blockDim.x + threadIdx.x ) * 15 + j + i + keyLength ] )
             {
-                keys[ keyIndex ] = 'a';
+                keys[ ( blockIdx.x * blockDim.x + threadIdx.x ) * keyLength ] = 'a';
                 break;
             }
 
@@ -126,7 +129,10 @@ void file_output(char *data, int size, int word_length)
 }
 
 /**************************************************************************
- * Encode/Decode Input
+ * Check output
+ * This is by far the slowest way to check, it is only called for viable keys
+ * If the key length and first words length are the same length this function
+ * will be called for all possible first words.
  **************************************************************************/
 std::string parseString( std::string input, std::string dict )
 {
@@ -154,7 +160,7 @@ std::string parseString( std::string input, std::string dict )
     }
 
     return output;
-}//end processCipher
+}//end parseString
 
 /**************************************************************************
  * Encode/Decode Input
@@ -644,6 +650,7 @@ int main(int argc, char **argv)
     clock_gettime(CLOCK_REALTIME, &tend);
     printf("cuda key generation: %ld usec\n", get_elapsed(&tstart, &tend)/1000);
 
+    clock_gettime(CLOCK_REALTIME, &tstart);
     for(int i = 0; i < 1024*blocks; i++)
     {
         std::string testKey;
@@ -654,19 +661,23 @@ int main(int argc, char **argv)
             {
                 testKey += keys[KEY_LENGTH*i+j];
             }
-
+            
             std::string plainText = processCipher(CIPHER, testKey, false); 
-
+            /*
             std::string testString = plainText.substr(0,FIRST_WORD_LENGTH) + parseString( plainText.substr( FIRST_WORD_LENGTH, plainText.length()-FIRST_WORD_LENGTH ), dictionaryStr );
+            */
 
+            std::string testString = parseString(plainText, dictionaryStr);
             if( testString.back() != 'a' )
             {
-                std::cout << "\n" << "Key: " << testKey << std::endl;
+                std::cout << "Key: " << testKey << std::endl;
                 std::cout << "Plain Text: " << testString << std::endl;
             }
 
         }
     }
+    clock_gettime(CLOCK_REALTIME, &tend);
+    printf("sentence check: %ld usec\n", get_elapsed(&tstart, &tend)/1000);
 
     cudaFree(input_chars);
     cudaFree(keys);
